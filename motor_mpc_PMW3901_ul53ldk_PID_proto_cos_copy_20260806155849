@@ -77,9 +77,8 @@ float lastErrorRoll = 0, lastErrorPitch = 0;
 
 float pidOutputRoll, pidOutputPitch;
 
-// ================================================================
-//  [ADD] VL53L0X 安全読み取り / 高さ指定 / セーフティ着陸
-// ================================================================
+//VL53L0X 安全読み取り
+
 bool vl53l0x_ok = false;
 uint8_t vl53l0x_timeout_cnt = 0;
 const uint8_t VL53L0X_TIMEOUT_MAX = 5;
@@ -231,7 +230,7 @@ void setup() {
   m4s.writeMicroseconds(ESC_US_MIN);
   Serial.println(" done.");
 
-  // [ADD] 起動直後は FLYING 状態から開始 (flight_state 初期値 LANDED をリセット、M1-M4 が 0 のまま固定されるバグ修正)
+  // 起動直後は FLYING 状態から開始 (flight_state 初期値 LANDED をリセット、M1-M4 が 0 のまま固定されるバグ修正)
   flight_state = FLYING;
   land_start_ms = 0;
 
@@ -302,7 +301,7 @@ void loop() {
   pidOutputPitch = (kp * errorPitch) + (ki * IPitch) + (kd * DPitch);
   lastErrorPitch = errorPitch;
 
-  // [ADD] VL53L0X 高さ読み取り, 自動着陸
+  //VL53L0X 高さ読み取り, 自動着陸
   static bool has_achieved_altitude = false;  // Latch to prevent auto-land on takeoff
 
   // WAKE UP FROM LANDED: If throttle is pushed up (and esp-now actually connected), reset to FLYING
