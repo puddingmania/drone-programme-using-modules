@@ -1,0 +1,109 @@
+#include <esp_now.h>
+#include <WiFi.h>
+
+// ターゲット（フィギュアスタンド）の MAC address
+uint8_t targetAddress[] = {enter the drones' MAC};
+//20:50:0d:d1:30:94
+#define buzzer_pin 18
+
+#define ANALOG_X_PIN 35
+#define ANALOG_Y_PIN 34
+#define ANALOG_M_PIN 33 // move
+#define ANALOG_R_PIN 32 // rotate
+#define ANALOG_BUTTON_PIN 14
+
+struct __attribute__((packed)) ControlData {
+  uint8_t vertical; 
+  uint8_t horizontal;
+  uint8_t frontback;
+  uint8_t rotate;
+  uint8_t bizz;
+};
+
+esp_now_peer_info_t peerInfo;
+
+void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
+  Serial.print("Send Status: ");
+  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Success" : "Fail");
+}
+
+void sendJoystickData() {
+  int rawX = analogRead(ANALOG_X_PIN);
+  int rawY = analogRead(ANALOG_Y_PIN);
+  int rawM = analogRead(ANALOG_M_PIN);
+  int rawR = analogRead(ANALOG_R_PIN);
+
+  uint8_t mapX = map(rawX, 0, 4095, 0, 255);
+  uint8_t mapY = map(rawY, 0, 4095, 0, 255);
+  uint8_t mapM = map(rawM, 0, 4095, 0, 255);
+  uint8_t mapR = map(rawR, 0, 4095, 0, 255);
+
+  ControlData data;
+  data.horizontal = mapY; 
+  data.vertical   = mapX; 
+  data.frontback  = mapM; 
+  data.rotate     = mapR; 
+  
+  Serial.printf("X: %4d -> %3d | Y: %4d -> %3d | M: %4d -> %3d | R: %4d -> %3d\n", 
+                rawX, mapX, rawY, mapY, rawM, mapM, rawR, mapR);
+
+  esp_err_t result = esp_now_send(targetAddress, (uint8_t*)&data, sizeof(data));
+  if (result != ESP_OK) {
+    Serial.println("Error sending the data");
+  }
+}
+
+void OnDataRecv(const esp_now_recv_info_t *recv_info, const uint8_t *incomingData, int len) {
+  if (len == sizeof(ControlData)) {
+    ControlData incoming;
+    memcpy(&incoming, incomingData, sizeof(incoming));
+
+    // bizzの値（0〜255）をブザーピンに出力
+    ledcWrite(buzzer_pin, incoming.bizz);
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  Serial.println("ESP32-WROOM ESP-NOW Sender Start.");
+
+  // Configure ADC to read full 0 - 3.3V range
+  analogSetAttenuation(ADC_11db);
+
+  WiFi.mode(WIFI_STA); // Use WIFI_STA unless AP mode is strictly needed
+
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("Error initializing ESP-NOW");
+    return;
+  }
+
+  esp_now_register_send_cb((esp_now_send_cb_t)OnDataSent);
+
+  pinMode(ANALOG_X_PIN, INPUT);
+  pinMode(ANALOG_Y_PIN, INPUT);
+  pinMode(ANALOG_M_PIN, INPUT);
+  pinMode(ANALOG_R_PIN, INPUT);
+  pinMode(ANALOG_BUTTON_PIN, INPUT_PULLUP);
+  pinMode(buzzer_pin, OUTPUT);
+
+  ledcAttach(buzzer_pin, 5000, 8);
+  esp_now_register_recv_cb(OnDataRecv);
+  memcpy(peerInfo.peer_addr, targetAddress, 6);
+  peerInfo.channel = 0;  
+  peerInfo.encrypt = false; 
+  
+  if (esp_now_add_peer(&peerInfo) != ESP_OK){
+    Serial.println("Failed to add peer");
+    return;
+  }
+}
+
+void loop() {
+  sendJoystickData();
+  //ledcwrite(buzzer_pin, mapbizz)
+  delay(100); 
+
+
+
+}
