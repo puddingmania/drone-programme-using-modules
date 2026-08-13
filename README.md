@@ -6,3 +6,7 @@ Disadvantage:
 1.a lot of monitor process
 2.Have Not Done The Safety Test******
 3.Fill in the MAC and  PID value by yourself******
+
+How to use:
+1.Download the corresponding library from GitHub or Arduino libraries
+2.Assemble the hardware following the instructions
