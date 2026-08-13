@@ -102,7 +102,7 @@ const uint16_t LAND_TRIGGER_MM = 100;
 const uint16_t SAFETY_DESCEND_MM = 80;
 volatile bool espnow_received_flag = false;
 
-// [ADD] tuner.py 向けCSV（LLM PID Tuner互換）用変数
+// pid AI pipeline
 const float TUNER_SETPOINT = 0.0f;
 float tuner_pwm_output = 0.0f;
 void sendTunerCSV(unsigned long t);
@@ -181,7 +181,7 @@ void setup() {
   //vl53l0x
  // MPU6050の初期化後...
 
-  // VL53L0Xの初期化（共通関数利用、初回失敗時は1秒毎にloop内で再試行=常駐起動）
+  // VL53L0X
   if (vl53l0x_init_once()) {
     vl53l0x_ok = true;
     vl53l0x_timeout_cnt = 0;
@@ -302,9 +302,7 @@ void loop() {
   pidOutputPitch = (kp * errorPitch) + (ki * IPitch) + (kd * DPitch);
   lastErrorPitch = errorPitch;
 
-  // ================================================================
-  // [ADD] VL53L0X 高さ読み取り, 高さホールドP, 自動着陸判定
-  // ================================================================
+  // [ADD] VL53L0X 高さ読み取り, 自動着陸
   static bool has_achieved_altitude = false;  // Latch to prevent auto-land on takeoff
 
   // WAKE UP FROM LANDED: If throttle is pushed up (and esp-now actually connected), reset to FLYING
@@ -314,7 +312,7 @@ void loop() {
     Serial.println("Throttle up -> Taking off, state set to FLYING");
   }
 
-  // [ADD] VL53L0X 常駐起動：失敗しても 1 秒毎に再初期化を試行
+  //VL53L0X 常駐起動：失敗しても 1 秒毎に再初期化を試行
   if (!vl53l0x_ok) {
     if ((long)(millis() - vl53l0x_next_retry_ms) >= 0) {
       if (vl53l0x_init_once()) {
@@ -534,9 +532,8 @@ void loop() {
   delay(5);
 }
 
-// ================================================================
-// [ADD] tuner.py 向け CSV出力 & シリアルコマンド実装
-// ================================================================
+
+//シリアルコマンド
 void sendTunerCSV(unsigned long timestamp_ms) {
   float tuner_input = rollAngle;
   float tuner_error = TUNER_SETPOINT - tuner_input;
@@ -666,10 +663,8 @@ void processSerialCommand() {
   }
 }
 
-// ================================================================
-// [ADD] VL53L0X 共通初期化関数 (setup + 常駐再試行の両方から呼ばれる)
-//        true = 初期化成功, false = ACKまたはinit失敗
-// ================================================================
+
+// VL53L0X now serial
 bool vl53l0x_init_once() {
   Wire.beginTransmission(0x29);
   uint8_t tof_ack = Wire.endTransmission(true);
@@ -683,7 +678,7 @@ bool vl53l0x_init_once() {
   }
   sensor.setTimeout(100);
   sensor.startContinuous((uint32_t)VL53L0X_MEASURE_PERIOD_MS);
-  // startContinuous 起動直後のダミー読み捨て (データシート推奨)
+  // startContinuous
   (void)sensor.readRangeContinuousMillimeters();
   (void)sensor.timeoutOccurred();
   Serial.println("VL53L0X initialized OK");
