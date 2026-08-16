@@ -10,3 +10,12 @@ Disadvantage:
 How to use:
 1.Download the corresponding library from GitHub or Arduino libraries
 2.Assemble the hardware following the instructions
+
+
+design:
+
+ cw  \  ^  / ccw
+      \   /
+     (Pin on left)mpu, pmw
+      /    \
+ccw  /       \ cw
