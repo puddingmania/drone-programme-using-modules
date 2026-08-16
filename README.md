@@ -18,4 +18,4 @@ design:
       \   /
      (Pin on left)mpu, pmw
       /    \
-ccw  /       \ cw
+ccw  /       \ cw 
