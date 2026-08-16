@@ -1,4 +1,4 @@
-'Advantage:
+Advantage:
 1.It is a program with and driven by on-sell modules (PM3901, esp32wroom, UL53LDK, ESC, brushless motor)
 2.Could run, just by copying the lay-out 
 
@@ -14,8 +14,8 @@ How to use:
 
 design:
 
- cw  \  ^  / ccw
-      \   /
-     (Pin on left)mpu, pmw
-      /    \
-ccw  /       \ cw '
+ cw  \  ^  / ccw<br>
+      \   /<br>
+     (Pin on left)mpu, pmw<br>
+      /    \<br>
+ccw  /       \ cw <br>
