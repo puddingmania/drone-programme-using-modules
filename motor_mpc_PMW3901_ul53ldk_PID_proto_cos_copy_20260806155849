@@ -391,7 +391,7 @@ void loop() {
   //}
   // ================================================================
 
-  float base_throttle_f = (float)receivedData.vertical + (float)THROTTLE_IDLE_OFFSET - 30;
+  float base_throttle_f = (float)receivedData.vertical + (float)THROTTLE_IDLE_OFFSET;
   //高さ補正 / 着陸済み時は強制 0
   float effective_throttle_f = base_throttle_f + height_correction;
   if (flight_state == LANDED) effective_throttle_f = 0.0f;
