@@ -33,7 +33,7 @@ void sendJoystickData() {
   int rawM = analogRead(ANALOG_M_PIN);
   int rawR = analogRead(ANALOG_R_PIN);
 
-  uint8_t mapX = map(rawX, 0, 4095, 0, 255);
+  uint8_t mapX = map(rawX, 0, 4095, 0, 127);//モーターやドローンの重さで飽和値を変更
   uint8_t mapY = map(rawY, 0, 4095, 0, 255);
   uint8_t mapM = map(rawM, 0, 4095, 0, 255);
   uint8_t mapR = map(rawR, 0, 4095, 0, 255);
