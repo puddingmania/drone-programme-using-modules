@@ -15,5 +15,5 @@ How to use:
 design:
 
  cw  \  ^  / ccw<br>
-```` (Pin on left)mpu, pmw<br>
+ (Pin on left)mpu, pmw<br>
 ccw  /       \ cw <br>
