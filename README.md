@@ -4,7 +4,7 @@ Advantage:
 
 Disadvantage:  
 1.a lot of monitor process, affecting I/O output  
-2.Have Not Done The Safety Test******  
+2.Have Not Done The Safety Test******(when the controller is disconnected, it will remains the last value)  
 3.Fill in the MAC and  PID value by yourself******  
 
 How to use:  
@@ -17,4 +17,4 @@ design:
 
  cw  \  ^  / ccw<br>
  (Pin on left)mpu, pmw<br>
-ccw  /       \ cw <br>
+ccw  /     \ cw <br>
