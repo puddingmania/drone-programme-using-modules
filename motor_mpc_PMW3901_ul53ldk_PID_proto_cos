@@ -401,6 +401,12 @@ void loop() {
   int16_t m2i = (int16_t)(effective_throttle_f + pidOutputRoll - pidOutputPitch);
   int16_t m4i = (int16_t)(effective_throttle_f + pidOutputRoll + pidOutputPitch); 
 
+  bool is_saturated = (m1i < MOTOR_MIN || m1i > MOTOR_MAX ||
+                     m2i < MOTOR_MIN || m2i > MOTOR_MAX ||
+                     m3i < MOTOR_MIN || m3i > MOTOR_MAX ||
+                     m4i < MOTOR_MIN || m4i > MOTOR_MAX);
+
+
   // PMW3901 draft
   // flow.readMotionCount(&deltaX, &deltaY);
   // if (deltaY < -50) { 
