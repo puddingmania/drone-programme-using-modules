@@ -9,11 +9,10 @@ Disadvantage:
 
 How to use:  
 1.Download the corresponding library from GitHub or Arduino libraries  
-2.use "espnowmaster_proto" as the controller and "motor_mpc_PMW3901_ul53ldk_PID_proto_cos" as te drone code
+2.use "espnowmaster_proto" as the controller and "motor_mpc_PMW3901_ul53ldk_PID_proto_cos" as the drone code
 3.Assemble the hardware following the instructions  
 
-motor_mpc_PMW3901_ul53ldk_PID_proto_cos: drone program  
-espnowmaster_proto: controller program  
+  
 design:  
 
  cw  \  ^  / ccw<br>
