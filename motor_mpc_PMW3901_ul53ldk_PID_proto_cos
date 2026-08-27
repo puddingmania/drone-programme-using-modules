@@ -12,11 +12,11 @@ VL53L0X sensor;
 
 #define CHANNEL 1
 
-#define THROTTLE_IDLE_OFFSET 0
+#define THROTTLE_IDLE_OFFSET 50
 #define MOTOR_MIN 0
-#define MOTOR_MAX 100
+#define MOTOR_MAX 200
 
-// ESC パルス幅（μs）：0=ストップ(アーム)  MOTOR_MAX=フルスロットル
+// ESC paluse range
 const int ESC_US_MIN = 1000;
 const int ESC_US_MAX = 2000;
 
@@ -26,10 +26,9 @@ Servo m2s;
 Servo m3s;
 Servo m4s;
 
-uint8_t broadcastAddress[] = {enter your controllers' MAC};  //send data to controller
+uint8_t broadcastAddress[] = { 0x??, 0x??, 0x??, 0x??, 0x??, 0x?? };  //send data to controller, use your own MAC
 
 int16_t deltaX = 0, deltaY = 0;
-// espnow data xy  20:50:0d:29:81:4c
 struct __attribute__((packed)) ControlData {
   uint8_t vertical;
   uint8_t horizontal;
@@ -50,12 +49,7 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 
 
 const int MPU_addr = 0x68;
-//conszstruction
-const int ledPin1 = 33;  //rr cw
-const int ledPin2 = 25;  //fr ccw
-const int ledPin3 = 32;  //rlccw
-const int ledPin4 = 26;  //fl cw
-
+//constructions
 int16_t AcX, AcY, AcZ, Tmp, GyX, GyY, GyZ;
 
 float rollAngle, pitchAngle;
@@ -63,9 +57,9 @@ float gyroRollRate, gyroPitchRate;
 unsigned long lastTime;
 float dt;
 
-float kp = 1.4;
-float ki = 0.0;
-float kd = 0;
+float kp = 1.15;
+float ki = 0.05;
+float kd = 0.003;
 
 float setpointRoll = 0.0;
 float setpointPitch = 0.0;
@@ -77,8 +71,8 @@ float lastErrorRoll = 0, lastErrorPitch = 0;
 
 float pidOutputRoll, pidOutputPitch;
 
-//VL53L0X 安全読み取り
 
+//   VL53L0X safing
 bool vl53l0x_ok = false;
 uint8_t vl53l0x_timeout_cnt = 0;
 const uint8_t VL53L0X_TIMEOUT_MAX = 5;
@@ -101,7 +95,7 @@ const uint16_t LAND_TRIGGER_MM = 100;
 const uint16_t SAFETY_DESCEND_MM = 80;
 volatile bool espnow_received_flag = false;
 
-// pid AI pipeline
+//tuner.py for CSV
 const float TUNER_SETPOINT = 0.0f;
 float tuner_pwm_output = 0.0f;
 void sendTunerCSV(unsigned long t);
@@ -130,7 +124,7 @@ static void i2cBusRecover(int sda, int scl) {
 // ================================================================
 
 // Using digital pin 10 for chip select
-Bitcraze_PMW3901 flow(5);
+Bitcraze_PMW3901 flow(2);
 
 ControlData receivedData;  //format
 
@@ -145,54 +139,30 @@ void OnDataRecv(const esp_now_recv_info_t *recv_info, const uint8_t *incomingDat
 
 void setup() {
   Serial.begin(115200);
-  delay(1509);  // stable the serial
+  delay(109);  // stable the serial
 
   //pmw3901
   SPI.begin();
   flow.begin();
 
-  //I2C バスロック回復 & 先にタイムアウト設定 (SDA=21/SCL=22 は ESP32標準)
+  //  I2C handaling timeout
   i2cBusRecover(21, 22);
   //mpu
   Wire.begin();
-  Wire.setTimeOut(50);  // 50msでタイムアウト
+  Wire.setTimeOut(50);  // timeout in 50ms
   delay(5);
   Wire.beginTransmission(MPU_addr);
   Wire.write(0x6B);
   Wire.write(0);
   Wire.endTransmission(true);
-
-  // Wi-Fi設定
-  WiFi.mode(WIFI_AP_STA);  // requires the Wi-Fi radio to be on
-  Serial.print("MAC Address: ");
-  Serial.println(WiFi.macAddress());
-
-  // initialize
-  if (esp_now_init() != ESP_OK) {
-    Serial.println("Error initializing ESP-NOW");
-    return;
-  }
-
-  // important v3 feedback
-  esp_now_register_recv_cb(esp_now_recv_cb_t(OnDataRecv));
-
-
-  //vl53l0x
- // MPU6050の初期化後...
-
-  // VL53L0X
-  if (vl53l0x_init_once()) {
-    vl53l0x_ok = true;
-    vl53l0x_timeout_cnt = 0;
-  } else {
-    vl53l0x_ok = false;
-    vl53l0x_next_retry_ms = millis() + VL53L0X_RETRY_INTERVAL_MS;
-  }
-
-  // ESC 初期化 (ESP32Servo: 50Hz / 1-2ms 標準パルス)
-// ESC 初期化 (ESP32Servo: 50Hz / 1-2ms 標準パルス)
-  ESP32PWM::allocateTimer(-1);
-  
+//
+//DO NOT PUT CODE HERE, ensure the esc initialization is in the first priority!!
+//
+// ESC intitialize
+  ESP32PWM::allocateTimer(0);
+  ESP32PWM::allocateTimer(1);
+  ESP32PWM::allocateTimer(2);
+  ESP32PWM::allocateTimer(3);
 
   m1s.setPeriodHertz(50); // Standard 50Hz ESC
   m2s.setPeriodHertz(50);
@@ -200,12 +170,14 @@ void setup() {
   m4s.setPeriodHertz(50);
 
 
-  m1s.attach(33, ESC_US_MIN, ESC_US_MAX);
-  m2s.attach(25, ESC_US_MIN, ESC_US_MAX);
-  m3s.attach(32, ESC_US_MIN, ESC_US_MAX);
-  m4s.attach(26, ESC_US_MIN, ESC_US_MAX);
+  m1s.attach(??, ESC_US_MIN, ESC_US_MAX);//fl cw check with your board data sheet to see which pins aresafe to use
+  m2s.attach(??, ESC_US_MIN, ESC_US_MAX);//fr ccw
+  m3s.attach(??, ESC_US_MIN, ESC_US_MAX);//rl ccw
+  m4s.attach(??, ESC_US_MIN, ESC_US_MAX);//rr cw
 
-  //Send MIN throttle (1000us) first to arm the ESCs
+
+
+  // Send MIN throttle (1000us) first to arm the ESCs
   Serial.print("Arming ESCs (Waiting 3s)... ");
   m1s.writeMicroseconds(ESC_US_MIN);
   m2s.writeMicroseconds(ESC_US_MIN);
@@ -214,9 +186,9 @@ void setup() {
   delay(3000); // Give the ESCs time to boot, read 0 throttle, and beep their armed sequence
   Serial.println("Armed.");
 
-  //test
-  const int ESC_US_TEST = ESC_US_MIN + (ESC_US_MAX - ESC_US_MIN) * 60 / 100;
-  Serial.print("[MOTOR TEST] 30% -> 3s ...");
+  // !!!!!!!!!!REMOVE BLADES BEFORE RUNNING THIS TEST!!!!!!
+  const int ESC_US_TEST = ESC_US_MIN + (ESC_US_MAX - ESC_US_MIN) * 20 / 100;
+  Serial.print("[MOTOR TEST] 20% -> 3s ...");
   m1s.writeMicroseconds(ESC_US_TEST);
   m2s.writeMicroseconds(ESC_US_TEST);
   m3s.writeMicroseconds(ESC_US_TEST);
@@ -230,7 +202,35 @@ void setup() {
   m4s.writeMicroseconds(ESC_US_MIN);
   Serial.println(" done.");
 
-  // 起動直後は FLYING 状態から開始 (flight_state 初期値 LANDED をリセット、M1-M4 が 0 のまま固定されるバグ修正)
+
+  // Wi-Fi
+  WiFi.mode(WIFI_AP_STA);  // requires the Wi-Fi radio to be on
+  Serial.print("My MAC Address: ");
+  Serial.println(WiFi.macAddress());
+
+  // initialize
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("Error initializing ESP-NOW");
+    return;
+  }
+
+  // important v3 feedback
+  esp_now_register_recv_cb(esp_now_recv_cb_t(OnDataRecv));
+
+
+
+  // VL53L0X initialized
+  if (vl53l0x_init_once()) {
+    vl53l0x_ok = true;
+    vl53l0x_timeout_cnt = 0;
+  } else {
+    vl53l0x_ok = false;
+    vl53l0x_next_retry_ms = millis() + VL53L0X_RETRY_INTERVAL_MS;
+  }
+
+
+
+  // start at flight state
   flight_state = FLYING;
   land_start_ms = 0;
 
@@ -284,24 +284,25 @@ void loop() {
   float accPitch = atan2(-AcX, sqrt(pow(AcY, 2) + pow(AcZ, 2))) * 180 / M_PI;
 
   //filter
-  rollAngle = 0.96 * (rollAngle + gyroRollRate * dt) + 0.04 * accRoll;
-  pitchAngle = 0.96 * (pitchAngle + gyroPitchRate * dt) + 0.04 * accPitch;
+  rollAngle = 0.955 * (rollAngle + gyroRollRate * dt) + 0.045 * accRoll;
+  pitchAngle = 0.955 * (pitchAngle + gyroPitchRate * dt) + 0.035 * accPitch;
 
   errorRoll = setpointRoll - rollAngle;
   IRoll += errorRoll * dt;
-  IRoll = constrain(IRoll, -50, 50);
+  IRoll = constrain(IRoll, -500, 500);
   DRoll = (errorRoll - lastErrorRoll) / dt;
   pidOutputRoll = (kp * errorRoll) + (ki * IRoll) + (kd * DRoll);
   lastErrorRoll = errorRoll;
 
   errorPitch = setpointPitch - pitchAngle;
   IPitch += errorPitch * dt;
-  IPitch = constrain(IPitch, -50, 50);
+  IPitch = constrain(IPitch, -500, 500);
   DPitch = (errorPitch - lastErrorPitch) / dt;
   pidOutputPitch = (kp * errorPitch) + (ki * IPitch) + (kd * DPitch);
   lastErrorPitch = errorPitch;
 
-  //VL53L0X 高さ読み取り, 自動着陸
+
+  // VL53L0X get height
   static bool has_achieved_altitude = false;  // Latch to prevent auto-land on takeoff
 
   // WAKE UP FROM LANDED: If throttle is pushed up (and esp-now actually connected), reset to FLYING
@@ -311,7 +312,7 @@ void loop() {
     Serial.println("Throttle up -> Taking off, state set to FLYING");
   }
 
-  //VL53L0X 常駐起動：失敗しても 1 秒毎に再初期化を試行
+  // VL53L0X = 1
   if (!vl53l0x_ok) {
     if ((long)(millis() - vl53l0x_next_retry_ms) >= 0) {
       if (vl53l0x_init_once()) {
@@ -336,7 +337,7 @@ void loop() {
       if (vl53l0x_timeout_cnt >= VL53L0X_TIMEOUT_MAX) {
         vl53l0x_ok = false;
         vl53l0x_next_retry_ms = millis() + VL53L0X_RETRY_INTERVAL_MS;
-        // [セーフランド無効コメント]
+        // safe land
         //if (flight_state == FLYING) {
         //  land_start_ms = millis();
         //  flight_state  = DESCENDING;
@@ -353,8 +354,8 @@ void loop() {
           has_achieved_altitude = true;
       }
 
-
-      // [セーフランド無効コメント]
+      // ONLY trigger safety descend if we were already flying high and suddenly dropped
+      // safe land
       //if (flight_state == FLYING && has_achieved_altitude && current_height_mm <= SAFETY_DESCEND_MM) {
       //  land_start_ms    = millis();
       //  flight_state     = DESCENDING;
@@ -372,7 +373,7 @@ void loop() {
     tof_last_timeout = false;
   }
 
-  // [セーフランド無効コメント]
+  // safe land
   //if (flight_state == DESCENDING) {
   //  unsigned long t = millis() - land_start_ms;
   //  float frac = (t >= LAND_DURATION_MS) ? 1.0f : (float)t / (float)LAND_DURATION_MS;
@@ -392,20 +393,31 @@ void loop() {
   // ================================================================
 
   float base_throttle_f = (float)receivedData.vertical + (float)THROTTLE_IDLE_OFFSET;
-  //高さ補正 / 着陸済み時は強制 0
+  // ensure the landing value  = 0
   float effective_throttle_f = base_throttle_f + height_correction;
   if (flight_state == LANDED) effective_throttle_f = 0.0f;
-  //mpu
-  int16_t m1i = (int16_t)(effective_throttle_f - pidOutputRoll - pidOutputPitch);
+
+  //mpu matrix
+  int16_t m4i = (int16_t)(effective_throttle_f - pidOutputRoll - pidOutputPitch);
   int16_t m3i = (int16_t)(effective_throttle_f - pidOutputRoll + pidOutputPitch); 
   int16_t m2i = (int16_t)(effective_throttle_f + pidOutputRoll - pidOutputPitch);
-  int16_t m4i = (int16_t)(effective_throttle_f + pidOutputRoll + pidOutputPitch); 
-
-  bool is_saturated = (m1i < MOTOR_MIN || m1i > MOTOR_MAX ||
+  int16_t m1i = (int16_t)(effective_throttle_f + pidOutputRoll + pidOutputPitch); 
+  
+  // check for motor saturation
+bool is_saturated = (m1i < MOTOR_MIN || m1i > MOTOR_MAX ||
                      m2i < MOTOR_MIN || m2i > MOTOR_MAX ||
                      m3i < MOTOR_MIN || m3i > MOTOR_MAX ||
                      m4i < MOTOR_MIN || m4i > MOTOR_MAX);
 
+// integrate ONLY when motors are inside linear control limits
+if (!is_saturated && receivedData.vertical >= 10 ) {
+    IRoll += errorRoll * dt;
+    IPitch += errorPitch * dt;
+} else if (is_saturated) {
+    // Slowly bleed off existing integral during saturation
+    IRoll *= 0.98f;
+    IPitch *= 0.98f;
+}
 
   // PMW3901 draft
   // flow.readMotionCount(&deltaX, &deltaY);
@@ -428,33 +440,34 @@ void loop() {
   // }
 
   if (receivedData.rotate > 125) {
-    // ヨー回転（CWペアを下げる）: これは元のままで正解です
-    int16_t reducePower = (int16_t)map(receivedData.rotate, 125, 255, 0, 80);  
-    m2i -= reducePower; 
-    m3i -= reducePower; 
-  } else if (receivedData.rotate < 115) {
-    // ヨー回転（CCWペアを下げる）: これは元のままで正解です
-    int16_t reducePower = (int16_t)map(receivedData.rotate, 115, 0, 0, 80);  
-    m1i -= reducePower; 
-    m4i -= reducePower; 
-  }
-
-  if (receivedData.frontback > 125) {
-    // 前進: 前モーター(1と2)の出力を下げる
-    int16_t reducePower = (int16_t)map(receivedData.frontback, 125, 255, 0, 80);  
-    m2i -= reducePower;                                                            
-    m4i -= reducePower;                                                            
-  } else if (receivedData.frontback < 115) {
-    // 後退: 後モーター(3と4)の出力を下げる
-    int16_t reducePower = (int16_t)map(receivedData.frontback, 115, 0, 0, 80);  
+    //reduce front motors
+    int16_t reducePower = (int16_t)map(receivedData.rotate, 125, 255, 0, 80);  // mapping 0-80 power reduction
     m1i -= reducePower;
+    m4i -= reducePower;
+  } else if (receivedData.rotate < 115) {
+    //reduce back motors
+    int16_t reducePower = (int16_t)map(receivedData.rotate, 115, 0, 0, 80);  // reverse mapping 0-80 power reduction dynamically
+    m2i -= reducePower;
     m3i -= reducePower;
   }
 
 
+  if (receivedData.frontback > 125) {
+    //reduce front motors
+    int16_t reducePower = (int16_t)map(receivedData.frontback, 125, 255, 0, 80);  // mapping 0-80 power reduction dynamically
+    m1i -= reducePower;                                                           //use frontback on final+twist
+    m3i -= reducePower;                                                           //+twist
+  } else if (receivedData.frontback < 115) {
+    //reduce back motors
+    int16_t reducePower = (int16_t)map(receivedData.frontback, 115, 0, 0, 80);  // reverse mapping 0-80 power reduction dynamically
+    m2i -= reducePower;
+    m4i -= reducePower;
+  }
 
 
-  //remains +values & LANDED 最終保証
+
+
+  //remains +values
   int m1, m2, m3, m4;
   if (flight_state == LANDED) {
     m1 = m2 = m3 = m4 = 0;
@@ -465,21 +478,7 @@ void loop() {
     m4 = constrain((int)m4i, MOTOR_MIN, MOTOR_MAX);
   }
 
-  if (Serial.available() > 0) { // データが届いているか確認
-    char incomingChar = Serial.read(); // 1文字読み込む
-    
-    // 受け取った文字に応じた操作
-    if (incomingChar == '0') {
-      m1 = 0;
-      m2 = 0;
-      m3 = 0;
-      m4 = 0;
-      delay(999999);
-    }
-  }
-
-
-  //output part (ESC 1000-2000us, 元の0-100スケールを線形変換)
+  //output part (ESC 1000-2000us, linear scaling)
   m1s.writeMicroseconds(map(m1, MOTOR_MIN, MOTOR_MAX, ESC_US_MIN, ESC_US_MAX));
   m2s.writeMicroseconds(map(m2, MOTOR_MIN, MOTOR_MAX, ESC_US_MIN, ESC_US_MAX));
   m3s.writeMicroseconds(map(m3, MOTOR_MIN, MOTOR_MAX, ESC_US_MIN, ESC_US_MAX));
@@ -511,14 +510,14 @@ void loop() {
   }
   if (tof_last_timeout) { Serial.print(" TIMEOUT"); }
 
-  // Serial.println();
-  // Serial.print("# Height cur=");
-  // Serial.print(current_height_mm);
-  // Serial.print(" target=");
-  // Serial.print(target_height_mm);
-  // Serial.print(" state=");
-  // Serial.print(flight_state == FLYING ? "FLYING" : flight_state == DESCENDING ? "DESCENDING"
-  //                                                                             : "LANDED");
+  Serial.println();
+  Serial.print("# Height cur=");
+  Serial.print(current_height_mm);
+  Serial.print(" target=");
+  Serial.print(target_height_mm);
+  Serial.print(" state=");
+  Serial.print(flight_state == FLYING ? "FLYING" : flight_state == DESCENDING ? "DESCENDING"
+                                                                              : "LANDED");
   if (!vl53l0x_ok) Serial.print(" VL53L0X=DISABLED");
   if (vl53l0x_timeout_cnt > 0) Serial.printf(" tof_err=%u", vl53l0x_timeout_cnt);
   if (!espnow_received_flag) Serial.print(" ESPNOW=NO_RX");
@@ -526,38 +525,39 @@ void loop() {
   // Serial.print("| bizzvalue: ");
   // Serial.print(mapBizz);
 
-  // LLM PID Tuner (tuner.py) 向け CSV ※先頭行なしのため既存モニターと混在可能
+  // LLM PID Tuner (tuner.py) for CSV 
   sendTunerCSV(currentTime);
 
 
 
-  // contana(SET HEIGHT:xxx / LAND / HOVER / STATUS / RESET / SET P:x I:x D:x)
+  //(SET HEIGHT:xxx / LAND / HOVER / STATUS / RESET / SET P:x I:x D:x)
   processSerialCommand();
 
-  delay(5);
+  delay(3);
 }
 
 
-//シリアルコマンド
+// tuner.py for ai pid tunning
+
 void sendTunerCSV(unsigned long timestamp_ms) {
   float tuner_input = rollAngle;
   float tuner_error = TUNER_SETPOINT - tuner_input;
   tuner_pwm_output = (fabs(pidOutputRoll) + fabs(pidOutputPitch)) * 0.5f;
-  // Serial.print(timestamp_ms);
-  // Serial.print(",");
-  // Serial.print(TUNER_SETPOINT, 2);
-  // Serial.print(",");
-  // Serial.print(tuner_input, 3);
-  // Serial.print(",");
-  // Serial.print(tuner_pwm_output, 2);
-  // Serial.print(",");
-  // Serial.print(tuner_error, 3);
-  // Serial.print(",");
-  // Serial.print(kp, 4);
-  // Serial.print(",");
-  // Serial.print(ki, 4);
-  // Serial.print(",");
-  // Serial.println(kd, 4);
+  Serial.print(timestamp_ms);
+  Serial.print(",");
+  Serial.print(TUNER_SETPOINT, 2);
+  Serial.print(",");
+  Serial.print(tuner_input, 3);
+  Serial.print(",");
+  Serial.print(tuner_pwm_output, 2);
+  Serial.print(",");
+  Serial.print(tuner_error, 3);
+  Serial.print(",");
+  Serial.print(kp, 4);
+  Serial.print(",");
+  Serial.print(ki, 4);
+  Serial.print(",");
+  Serial.println(kd, 4);
 }
 
 void processSerialCommand() {
@@ -656,9 +656,9 @@ void processSerialCommand() {
                     vl53l0x_ok ? current_height_mm : (uint16_t)0xFFFF, target_height_mm,
                     kp, ki, kd);
     } else if (cmd == "RESET") {
-      kp = 1.5;
+      kp = 0.3;
       ki = 0.06;
-      kd = 0.5;
+      kd = 0.003;
       IRoll = IPitch = lastErrorRoll = lastErrorPitch = 0;
       target_height_mm = 500;
       flight_state = FLYING;
@@ -668,8 +668,8 @@ void processSerialCommand() {
   }
 }
 
+// VL53L0X's another int approach
 
-// VL53L0X now serial
 bool vl53l0x_init_once() {
   Wire.beginTransmission(0x29);
   uint8_t tof_ack = Wire.endTransmission(true);
@@ -683,7 +683,6 @@ bool vl53l0x_init_once() {
   }
   sensor.setTimeout(100);
   sensor.startContinuous((uint32_t)VL53L0X_MEASURE_PERIOD_MS);
-  // startContinuous
   (void)sensor.readRangeContinuousMillimeters();
   (void)sensor.timeoutOccurred();
   Serial.println("VL53L0X initialized OK");
