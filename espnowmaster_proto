@@ -3,7 +3,6 @@
 
 // ターゲット（フィギュアスタンド）の MAC address
 uint8_t targetAddress[] = {enter the drones' MAC};
-//20:50:0d:d1:30:94
 #define buzzer_pin 18
 
 #define ANALOG_X_PIN 35
@@ -33,7 +32,7 @@ void sendJoystickData() {
   int rawM = analogRead(ANALOG_M_PIN);
   int rawR = analogRead(ANALOG_R_PIN);
 
-  uint8_t mapX = map(rawX, 0, 4095, 0, 127);//モーターやドローンの重さで飽和値を変更
+  uint8_t mapX = map(rawX, 0, 4095, 0, 127);//モーターやドローンの重さで飽和値を変更 chnge the staturated value depend on your drone's weight and motor spec
   uint8_t mapY = map(rawY, 0, 4095, 0, 255);
   uint8_t mapM = map(rawM, 0, 4095, 0, 255);
   uint8_t mapR = map(rawR, 0, 4095, 0, 255);
