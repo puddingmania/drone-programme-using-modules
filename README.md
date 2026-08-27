@@ -4,7 +4,7 @@ Advantage:
 
 Disadvantage:  
 1.a lot of monitor process, affecting I/O output  
-2.Have Not Done The Safety Test******(when the controller is disconnected, it will remains the last value)  (no safety landing) (when I used l53l0x with mpu, the system stability dicrease, so I comment those parts)  
+2.Have Not Done The Safety Test******(when the controller is disconnected, it will remains the last value)  (no safety landing) (when I used l53l0x with mpu, the system stability dicrease, so I commented those parts)  
 3.Fill in the MAC and  PID value by yourself******  
 
 How to use:  
